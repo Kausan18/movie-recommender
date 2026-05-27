@@ -17,9 +17,10 @@ from scipy.sparse.linalg import svds
 from sklearn.model_selection import train_test_split
 import joblib
 
-MODEL_PATH = "models/svd_model.pkl"
-RATINGS_PATH = "data/raw/ratings.csv"
-MOVIES_PATH = "data/raw/movies.csv"
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+MODEL_PATH = os.path.join(ROOT_DIR, "models", "svd_model.pkl")
+RATINGS_PATH = os.path.join(ROOT_DIR, "data", "raw", "ratings.csv")
+MOVIES_PATH = os.path.join(ROOT_DIR, "data", "raw", "movies.csv")
 
 
 # ─────────────────────────────────────────────────────────── #

@@ -6,7 +6,6 @@ Shows the raw decomposition on a small subset of the matrix.
 import numpy as np
 import pandas as pd
 
-
 def build_user_item_matrix(ratings_df: pd.DataFrame) -> pd.DataFrame:
     """
     Pivot ratings into a dense user × movie matrix.
