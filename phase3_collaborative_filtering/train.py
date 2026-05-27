@@ -22,6 +22,11 @@ from phase3_collaborative_filtering.svd_model import (
     train_svd, evaluate_model, get_recommendations, save_model, build_sparse_matrix
 )
 
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+DATA_RAW_DIR = os.path.join(ROOT_DIR, "data", "raw")
+DATA_PROCESSED_DIR = os.path.join(ROOT_DIR, "data", "processed")
+MODEL_PATH = os.path.join(ROOT_DIR, "models", "svd_model.pkl")
+
 
 def main():
     print("=" * 60)
@@ -29,18 +34,18 @@ def main():
     print("=" * 60)
 
     print("\n[1/5] Loading data...")
-    ratings_df = pd.read_csv("data/raw/ratings.csv")
-    movies_df = pd.read_csv("data/raw/movies.csv")
+    ratings_df = pd.read_csv(os.path.join(DATA_RAW_DIR, "ratings.csv"))
+    movies_df = pd.read_csv(os.path.join(DATA_RAW_DIR, "movies.csv"))
     print(f"  Ratings : {len(ratings_df):,}")
     print(f"  Users   : {ratings_df['userId'].nunique()}")
     print(f"  Movies  : {ratings_df['movieId'].nunique()}")
 
     print("\n[2/5] Building sparse user-item matrix...")
     matrix, user_index, movie_index, user_means = build_sparse_matrix(ratings_df)
-    os.makedirs("data/processed", exist_ok=True)
+    os.makedirs(DATA_PROCESSED_DIR, exist_ok=True)
     joblib.dump(
         {"matrix": matrix, "user_index": user_index, "movie_index": movie_index},
-        "data/processed/user_item_matrix.pkl"
+        os.path.join(DATA_PROCESSED_DIR, "user_item_matrix.pkl")
     )
     dense_matrix = build_user_item_matrix(ratings_df)
     density = 1 - (dense_matrix == 0).values.sum() / (dense_matrix.shape[0] * dense_matrix.shape[1])
@@ -53,7 +58,7 @@ def main():
     metrics = evaluate_model(model, ratings_df)
 
     print("\n[5/5] Saving model...")
-    save_model(model)
+    save_model(model, MODEL_PATH)
 
     print("\n" + "=" * 60)
     print("DEMO RECOMMENDATIONS")

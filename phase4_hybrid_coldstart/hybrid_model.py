@@ -44,47 +44,36 @@ def get_content_candidates(
     user_id: int,
     ratings_df: pd.DataFrame,
     movies_df: pd.DataFrame,
-    cosine_sim: np.ndarray,
     n_candidates: int = 50
 ) -> dict:
-    """
-    Generate content-based candidate scores for a user by seeding from
-    their top-3 highest-rated movies.
+    # Use Phase 2's internal movies_clean.csv for title lookups,
+    # NOT the raw movies_df passed in (they have different movieId sets)
+    from phase2_content_based.recommend import _recommender
+    _recommender._load()  # trigger lazy load if not already loaded
+    internal_movies = _recommender._movies  # this is movies_clean.csv
 
-    NOTE: The cosine_sim parameter is accepted for API compatibility but
-    the actual Phase 2 get_similar_movies() loads its own cosine_sim
-    internally from models/cosine_sim_matrix.pkl. We use it here only
-    to maintain the function signature from the spec.
-
-    Returns:
-        dict of {movie_id: raw_content_score}
-    """
-    # Get user's ratings, sorted descending
+    # Get user's ratings
     user_ratings = ratings_df[ratings_df["userId"] == user_id].sort_values(
         "rating", ascending=False
     )
-
     if user_ratings.empty:
         return {}
 
-    # Take top 3 rated movies as seeds
+    # Look up seed titles using movies_clean.csv (same source Phase 2 uses)
     seed_movies = user_ratings.head(3)
-
-    # Collect scores: {movie_id: [list of similarity scores]}
     score_collector = {}
 
     for _, seed_row in seed_movies.iterrows():
-        seed_movie_id = seed_row["movieId"]
-        title_rows = movies_df[movies_df["movieId"] == seed_movie_id]["title"]
+        seed_movie_id = int(seed_row["movieId"])
 
+        # Look up in internal_movies, not movies_df
+        title_rows = internal_movies[internal_movies["movieId"] == seed_movie_id]["title"]
         if title_rows.empty:
             continue
 
         seed_title = title_rows.iloc[0]
 
         try:
-            # Call actual Phase 2 API: get_similar_movies(title, n)
-            # Returns DataFrame with columns: movieId, title, genres, similarity_score
             similar_df = get_similar_movies(seed_title, n=n_candidates)
         except (ValueError, FileNotFoundError):
             continue
@@ -96,8 +85,8 @@ def get_content_candidates(
                 score_collector[mid] = []
             score_collector[mid].append(score)
 
-    # Average scores for movies that appeared from multiple seeds
-    rated_ids = set(ratings_df[ratings_df["userId"] == user_id]["movieId"])
+    # Exclude movies the user already rated
+    rated_ids = set(int(x) for x in ratings_df[ratings_df["userId"] == user_id]["movieId"])
     candidates = {}
     for mid, scores in score_collector.items():
         if mid not in rated_ids:
@@ -190,40 +179,29 @@ def get_hybrid_recommendations(
     ratings_df: pd.DataFrame,
     movies_df: pd.DataFrame,
     svd_model: dict,
-    cosine_sim: np.ndarray,
     n: int = 10,
     alpha: float = 0.4
 ) -> list[dict]:
-    """
-    Main hybrid recommendation entry point.
-    Blends content-based and collaborative filtering scores.
+    from phase2_content_based.recommend import _recommender
+    _recommender._load()
+    internal_movies = _recommender._movies  # use this for metadata lookups
 
-    Returns list of dicts with keys:
-        movie_id, title, genres, content_score, cf_score, hybrid_score
-    """
-    # 1. Get candidates from both models
-    content_candidates = get_content_candidates(
-        user_id, ratings_df, movies_df, cosine_sim, n_candidates=50
-    )
-    cf_candidates = get_cf_candidates(
-        user_id, svd_model, ratings_df, movies_df, n_candidates=50
-    )
+    content_candidates = get_content_candidates(user_id, ratings_df, movies_df, n_candidates=50)
+    cf_candidates = get_cf_candidates(user_id, svd_model, ratings_df, movies_df, n_candidates=50)
 
-    # 2. Fallback to popularity if both are empty
     if not content_candidates and not cf_candidates:
         from phase4_hybrid_coldstart.cold_start import get_popular_recommendations
         return get_popular_recommendations(ratings_df, movies_df, n=n)
 
-    # 3. Blend scores
     blended = blend_scores(content_candidates, cf_candidates, alpha=alpha)
 
-    # 4. Take top n and look up metadata
     results = []
     for movie_id, hybrid_score in blended:
         if len(results) >= n:
             break
 
-        movie_rows = movies_df[movies_df["movieId"] == movie_id]
+        # Use internal_movies for lookup, not movies_df
+        movie_rows = internal_movies[internal_movies["movieId"] == movie_id]
         if movie_rows.empty:
             continue
 
@@ -248,15 +226,15 @@ if __name__ == "__main__":
     ratings = pd.read_csv("data/raw/ratings.csv")
     movies = pd.read_csv("data/raw/movies.csv")
     svd_model = load_model()
-    cosine_sim = joblib.load("models/cosine_sim_matrix.pkl")
+    #cosine_sim = joblib.load("models/cosine_sim_matrix.pkl")
 
     print("=== Hybrid recommendations for user 42 ===")
-    recs = get_hybrid_recommendations(42, ratings, movies, svd_model, cosine_sim, n=10)
+    recs = get_hybrid_recommendations(42, ratings, movies, svd_model, n=10)
     for r in recs:
         print(f"  {r['title']}  hybrid={r['hybrid_score']:.4f}  "
               f"content={r['content_score']:.4f}  cf={r['cf_score']:.4f}")
 
     print("\n=== Hybrid recommendations for user 1 ===")
-    recs = get_hybrid_recommendations(1, ratings, movies, svd_model, cosine_sim, n=10)
+    recs = get_hybrid_recommendations(1, ratings, movies, svd_model, n=10)
     for r in recs:
         print(f"  {r['title']}")
