@@ -2,6 +2,8 @@ import os
 import sys
 import numpy as np
 import pandas as pd
+import joblib
+svd_model = joblib.load("models/svd_model.pkl")
 
 # Ensure top-level package imports work when running this script directly.
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
@@ -23,11 +25,12 @@ from utils.metrics import (
 # IMPORT YOUR MODEL
 # ---------------------------------------------------------
 
-# Example:
-# from phase3_collaborative_filtering.svd_model import predict_rating
-
-from phase3_collaborative_filtering.svd_model import predict_rating
-
+from phase3_collaborative_filtering.svd_model import (
+    train_svd,
+    predict_rating,
+    save_model,
+    load_model,
+)
 
 # =========================================================
 # CREATE RESULTS DIRECTORY
@@ -59,13 +62,11 @@ print(f"Movies shape  : {movies.shape}")
 # TRAIN / TEST SPLIT
 # =========================================================
 
-print("\nSplitting dataset...")
+print("\nTraining SVD model (this does its own train/test split internally)...")
 
-train_df, test_df = train_test_split(
-    ratings,
-    test_size=0.2,
-    random_state=42
-)
+model = train_svd(ratings, k=100, test_size=0.2, random_state=42)
+train_df = model["train_df"]
+test_df  = model["test_df"]
 
 print(f"Train size : {len(train_df)}")
 print(f"Test size  : {len(test_df)}")
@@ -93,6 +94,7 @@ for _, row in test_df.iterrows():
         # -------------------------------------------------
 
         predicted_rating = predict_rating(
+            model,
             user_id,
             movie_id
         )
@@ -109,9 +111,9 @@ for _, row in test_df.iterrows():
         })
 
     except Exception as e:
-
+        if failed_predictions == 0:
+            print(f"\n[DEBUG] First failure — user_id={user_id}, movie_id={movie_id}, error: {e}")
         failed_predictions += 1
-
         continue
 
 print(f"Successful predictions : {len(predictions)}")
@@ -223,3 +225,30 @@ print(f"Precision@10  : {mean_precision:.4f}")
 print(f"Recall@10     : {mean_recall:.4f}")
 
 print("-" * 50)
+
+# =========================================================
+# PLOTS
+# =========================================================
+
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+
+os.makedirs("phase5_evaluation/results/plots", exist_ok=True)
+
+# ── RMSE comparison ───────────────────────────────────────
+fig, ax = plt.subplots(figsize=(7, 4))
+ax.bar(
+    ["Baseline (mean)", "SVD Collaborative"],
+    [base_rmse, rmse],
+    color=["#888780", "#D85A30"],
+    width=0.5
+)
+ax.set_title("RMSE Comparison (lower is better)")
+ax.set_ylabel("RMSE")
+for i, v in enumerate([base_rmse, rmse]):
+    ax.text(i, v + 0.01, f"{v:.4f}", ha="center", fontsize=11)
+plt.tight_layout()
+plt.savefig("phase5_evaluation/results/plots/rmse_comparison.png",dpi=500)
+plt.close()
+print("Saved: precision_comparison.png")
