@@ -1,17 +1,17 @@
 {
   "model_a": {
     "name": "Content-Based",
-    "n_users": 497,
-    "mean_precision_at_k": 0.0074,
-    "std": 0.0336
+    "n_users": 304,
+    "mean_precision_at_k": 0.0069,
+    "std": 0.0278
   },
   "model_b": {
     "name": "SVD Collaborative",
-    "n_users": 498,
-    "mean_precision_at_k": 0.1452,
-    "std": 0.1137
+    "n_users": 304,
+    "mean_precision_at_k": 0.1885,
+    "std": 0.1411
   },
-  "t_statistic": -25.8811,
+  "t_statistic": -21.9818,
   "p_value": 0.0,
   "statistically_significant": true,
   "winner": "Model B (SVD)"
