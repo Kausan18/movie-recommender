@@ -52,12 +52,14 @@ cb._load()
 all_users = list(model["user_index"].keys())
 np.random.seed(RANDOM_SEED)
 np.random.shuffle(all_users)
-mid            = len(all_users) // 2
-group_a_users  = set(all_users[:mid])   # content-based
-group_b_users  = set(all_users[mid:])   # SVD
+SAMPLE_SIZE_PER_GROUP = 500   # cap evaluation size — 500/group is statistically sufficient
 
-print(f"\nGroup A (Content-Based) : {len(group_a_users)} users")
-print(f"Group B (SVD)           : {len(group_b_users)} users")
+mid            = len(all_users) // 2
+group_a_users  = set(all_users[:mid][:SAMPLE_SIZE_PER_GROUP])
+group_b_users  = set(all_users[mid:][:SAMPLE_SIZE_PER_GROUP])
+
+print(f"\nGroup A (Content-Based) : {len(group_a_users)} users (sampled)")
+print(f"Group B (SVD)           : {len(group_b_users)} users (sampled)")
 
 # ── Ground truth: leave-one-out from FULL ratings ─────────
 # For each user, hold back up to 5 liked movies as ground truth.

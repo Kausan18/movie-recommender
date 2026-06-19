@@ -7,6 +7,7 @@ LLM explanations are generated after recommendations arrive, never on page load.
 
 import pandas as pd
 import streamlit as st
+import os
 
 from utils.api_client import (
     get_by_movie,
@@ -22,21 +23,29 @@ from phase7_frontend.components.movie_card import render_movie_card
 # ── Cached data loaders ────────────────────────────────────────────────────
 
 @st.cache_data(show_spinner=False)
-def _load_links() -> dict[int, float]:
-    """Returns {movieId: tmdbId} mapping from links.csv."""
+def _load_links() -> dict[int, int]:
+   
     try:
-        df = pd.read_csv("data/raw/links.csv")
+        here      = os.path.dirname(os.path.abspath(__file__))
+        repo_root = os.path.abspath(os.path.join(here, "..", ".."))
+        csv_path  = os.path.join(repo_root, "data", "raw", "links.csv")
+        df = pd.read_csv(csv_path)
+        df = df.dropna(subset=["tmdbId"])          # drop movies with no TMDB entry
+        df["tmdbId"]  = df["tmdbId"].astype(int)   # float64 → int (safe now, no NaN)
+        df["movieId"] = df["movieId"].astype(int)
         return df.set_index("movieId")["tmdbId"].to_dict()
     except FileNotFoundError:
+        st.warning("links.csv not found — movie posters will not load.")
         return {}
-
 
 @st.cache_data(show_spinner=False)
 def _load_user_ratings() -> pd.DataFrame:
     """Load ratings so we can pull a user's top-rated titles for explanation context."""
     try:
-        ratings = pd.read_csv("data/raw/ratings.csv")
-        movies  = pd.read_csv("data/raw/movies.csv")
+        here      = os.path.dirname(os.path.abspath(__file__))
+        repo_root = os.path.abspath(os.path.join(here, "..", ".."))
+        ratings = pd.read_csv(os.path.join(repo_root, "data", "raw", "ratings.csv"))
+        movies  = pd.read_csv(os.path.join(repo_root, "data", "raw", "movies.csv"))
         return ratings.merge(movies[["movieId", "title"]], on="movieId")
     except FileNotFoundError:
         return pd.DataFrame()
