@@ -8,7 +8,7 @@ venv311/
 .env
 
 # ML model files
-*.pkl
+
 *.joblib
 *.h5
 *.pt
