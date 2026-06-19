@@ -1,8 +1,8 @@
 {
   "sample_users": 200,
-  "total_movies": 9742,
-  "unique_recommended": 473,
-  "coverage_pct": 4.86,
-  "gini_coefficient": 0.5016,
-  "top1pct_share_pct": 5.1
+  "total_movies": 62423,
+  "unique_recommended": 370,
+  "coverage_pct": 0.59,
+  "gini_coefficient": 0.4966,
+  "top1pct_share_pct": 4.0
 }

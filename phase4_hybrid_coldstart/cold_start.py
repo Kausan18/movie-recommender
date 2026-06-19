@@ -201,8 +201,11 @@ if __name__ == "__main__":
     else:
         print(f"  Result: {result}")
 
-    print("\n=== Routing for unknown new user (id=99999) ===")
+    print("\n=== Routing for existing high-activity user (id=99999) ===")
     result, model = route_recommendation(99999, ratings, movies, n=5)
     print(f"  Model used: {model}")
-    for r in result:
-        print(f"  {r['title']}")
+    if isinstance(result, list):
+        for r in result:
+            print(f"  {r['title']}")
+    else:
+        print(f"  Result: {result}")

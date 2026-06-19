@@ -21,3 +21,6 @@ venv311/
 .vscode/
 
 *.exe
+
+data/raw/ratings.csv
+data/raw/genome-scores.csv

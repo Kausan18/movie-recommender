@@ -83,9 +83,9 @@ def get_poster_url(tmdb_id: int | float | None) -> str | None:
         r.raise_for_status()
         path = r.json().get("poster_path")
         return f"{TMDB_IMG}{path}" if path else None
-    except Exception:
-        return None
-
+    except Exception as e:
+        print(f"Poster fetch failed (tmdb_id={tmdb_id}): {e}")
+    return None
 
 def is_backend_alive() -> bool:
     """Quick liveness check — used to show a warning banner in the UI."""

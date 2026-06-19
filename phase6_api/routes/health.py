@@ -19,7 +19,7 @@ def health_check() -> HealthResponse:
     """
     # Content recommender is considered loaded once its cosine_sim is set
     from phase2_content_based.recommend import _recommender
-    content_ready = _recommender._cosine_sim is not None
+    content_ready = _recommender._tfidf_matrix is not None
 
     return HealthResponse(
         status="ok",
