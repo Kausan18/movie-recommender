@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: movie-recommender-api
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn phase6_api.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: TMDB_KEY
+        sync: false
