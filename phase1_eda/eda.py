@@ -32,16 +32,24 @@ def load_data(data_dir: str) -> dict[str, pd.DataFrame]:
       Keeping them separate mirrors good database design (normalised tables)
       and lets us join only what we need, when we need it.
     """
+    # Resolve relative path to absolute
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    repo_root = os.path.abspath(os.path.join(script_dir, data_dir))
+    
     paths = {
-        "movies" : os.path.join(data_dir, "data/raw/movies.csv"),
-        "ratings": os.path.join(data_dir, "data/raw/ratings.csv"),
-        "tags"   : os.path.join(data_dir, "data/raw/tags.csv"),
-        "links"  : os.path.join(data_dir, "data/raw/links.csv"),
+        "movies" : os.path.join(repo_root, "data", "raw", "movies.csv"),
+        "ratings": os.path.join(repo_root, "data", "raw", "ratings.csv"),
+        "tags"   : os.path.join(repo_root, "data", "raw", "tags.csv"),
+        "links"  : os.path.join(repo_root, "data", "raw", "links.csv"),
     }
     dfs = {}
     for name, path in paths.items():
-        dfs[name] = pd.read_csv(path)
-        print(f"  Loaded {name:8s} → {dfs[name].shape[0]:>6,} rows × {dfs[name].shape[1]} cols")
+        try:
+            dfs[name] = pd.read_csv(path)
+            print(f"  Loaded {name:8s} → {dfs[name].shape[0]:>6,} rows × {dfs[name].shape[1]} cols")
+        except FileNotFoundError:
+            print(f"  ⚠️  SKIPPED {name:8s} → file not found: {path}")
+            dfs[name] = None
     return dfs
  
  
