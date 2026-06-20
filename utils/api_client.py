@@ -17,7 +17,7 @@ TMDB_IMG = "https://image.tmdb.org/t/p/w300"
 def _get(endpoint: str, params: dict = None) -> dict | None:
     """Internal GET helper. Returns parsed JSON or None on error."""
     try:
-        r = requests.get(f"{BASE_URL}{endpoint}", params=params, timeout=10)
+        r = requests.get(f"{BASE_URL}{endpoint}", params=params, timeout=60)
         r.raise_for_status()
         return r.json()
     except requests.RequestException:

@@ -10,14 +10,14 @@ from phase6_api.schemas import HealthResponse
 router = APIRouter()
 
 
-@router.get("/health", response_model=HealthResponse)
+@router.api_route("/health", methods=["GET", "HEAD"], response_model=HealthResponse)
 def health_check() -> HealthResponse:
     """
     Liveness + readiness check.
     Returns 200 with a per-model status dict so you can see at a glance
     which artefacts loaded.  Useful for debugging deployment issues.
     """
-    # Content recommender is considered loaded once its cosine_sim is set
+    # Content recommender is considered loaded once its tfidf_matrix is set
     from phase2_content_based.recommend import _recommender
     content_ready = _recommender._tfidf_matrix is not None
 
