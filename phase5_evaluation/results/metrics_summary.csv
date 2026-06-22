@@ -1,3 +1,5 @@
 Model,RMSE,MAE,Precision@10,Recall@10
 Baseline,1.0425,,,
 Collaborative Filtering,0.9483,0.7353,0.5138,0.6505
+Content-Based,,,0.0145,
+Hybrid,,,0.057,
