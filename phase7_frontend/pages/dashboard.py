@@ -1,8 +1,11 @@
 """
 dashboard.py — Evaluation dashboard page.
-Shows live /health status + hardcoded Phase 5 metrics as Plotly bar charts.
-Replace the placeholder values with actual Phase 5 output once available.
+Shows live /health status + Phase 5 metrics read from evaluation output files.
 """
+
+import csv
+import json
+import os
 
 import streamlit as st
 
@@ -14,35 +17,81 @@ from phase7_frontend.components.metrics_panel import (
     render_single_model_metrics,
 )
 
-# ── Phase 5 results — update these after running phase5_evaluation/ ──────────
-# SVD numbers are confirmed from Phase 5. Content and Hybrid filled once run.
-PHASE5_METRICS = {
-    # "Content":  {"rmse": None,   "p10": None},    # uncomment + fill once run
-    "SVD":      {"rmse": 0.9483, "p10": 0.5138},
-    # "Hybrid":   {"rmse": None,   "p10": None},    # uncomment + fill once run
-}
+# ── Path to phase5_evaluation/results/ regardless of launch directory ─────
+RESULTS_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    "phase5_evaluation", "results",
+)
+
+def _load_json(filename):
+    try:
+        with open(os.path.join(RESULTS_DIR, filename), "r") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return None
+
+def _load_metrics_csv():
+    rows = {}
+    try:
+        with open(os.path.join(RESULTS_DIR, "metrics_summary.csv"), newline="") as f:
+            for row in csv.DictReader(f):
+                rows[row["Model"]] = row
+    except FileNotFoundError:
+        pass
+    return rows
+
+def _f(val):
+    try:
+        return float(val)
+    except (TypeError, ValueError):
+        return None
+
+# ── Load Phase 5 results from disk ───────────────────────────────────────────
+_rows = _load_metrics_csv()
+_cf   = _rows.get("Collaborative Filtering")
+
+PHASE5_METRICS = {}
+if _cf:
+    PHASE5_METRICS["SVD"] = {"rmse": _f(_cf.get("RMSE")), "p10": _f(_cf.get("Precision@10"))}
+# When Content/Hybrid rows exist in metrics_summary.csv, add them the same way.
+_cb = _rows.get("Content-Based")
+_hy = _rows.get("Hybrid")
+
+if _cb:
+    PHASE5_METRICS["Content-Based"] = {"rmse": _f(_cb.get("RMSE")), "p10": _f(_cb.get("Precision@10"))}
+
+if _hy:
+    PHASE5_METRICS["Hybrid"] = {"rmse": _f(_hy.get("RMSE")), "p10": _f(_hy.get("Precision@10"))}
 
 SVD_FULL = {
-    "rmse":    0.9483,
-    "mae":     0.7353,
-    "p10":     0.5138,
-    "recall10": 0.6505,
+    "rmse":     _f(_cf.get("RMSE"))         if _cf else None,
+    "mae":      _f(_cf.get("MAE"))           if _cf else None,
+    "p10":      _f(_cf.get("Precision@10")) if _cf else None,
+    "recall10": _f(_cf.get("Recall@10"))    if _cf else None,
 }
 
-# A/B test — fill from phase5_evaluation/ab_test.py output
+_ab = _load_json("ab_test_results.json")
 AB_TEST = {
-    "model_a_name": "Content",
-    "model_b_name": "SVD",
-    "model_a_p10":  0.0,      # replace with actual value
-    "model_b_p10":  0.5138,
-    "p_value":      0.0,      # replace with actual value
+    "model_a_name": _ab["model_a"]["name"]               if _ab else "Content-Based",
+    "model_b_name": _ab["model_b"]["name"]               if _ab else "SVD",
+    "model_a_p10":  _ab["model_a"]["mean_precision_at_k"] if _ab else None,
+    "model_b_p10":  _ab["model_b"]["mean_precision_at_k"] if _ab else None,
+    "p_value":      _ab["p_value"]                        if _ab else None,
 }
 
-# Diversity / coverage — fill from phase5_evaluation/diversity_analysis.py
+_div = _load_json("diversity_summary.json")
+# coverage_pct → 0-1 float for render_coverage_diversity.
+# diversity (intra-list dissimilarity) has not been computed yet — pass None.
 DIVERSITY = {
-    "coverage":  None,   # replace with float e.g. 0.312
-    "diversity": None,   # replace with float e.g. 0.847
+    "coverage":  (_div["coverage_pct"] / 100) if _div else None,
+    "diversity": None,
 }
+_div_extra = {
+    "gini":    _div["gini_coefficient"]  if _div else None,
+    "top1pct": _div["top1pct_share_pct"] if _div else None,
+    "n_users": _div["sample_users"]      if _div else None,
+    "n_unique": _div["unique_recommended"] if _div else None,
+} if _div else None
 
 
 def render():
@@ -88,8 +137,8 @@ def render():
     else:
         st.info(
             "Only SVD metrics are available so far. "
-            "Run `phase5_evaluation/evaluate.py` for content and hybrid numbers, "
-            "then fill in the `PHASE5_METRICS` dict at the top of `dashboard.py`."
+            "Run `phase5_evaluation/evaluate.py` for content-based and hybrid numbers — "
+            "the dashboard will pick them up automatically once their rows appear in `metrics_summary.csv`."
         )
 
     st.divider()
@@ -104,12 +153,24 @@ def render():
     st.subheader("Diversity & coverage")
     render_coverage_diversity(
         coverage=DIVERSITY["coverage"],
-        diversity=DIVERSITY["diversity"],
+        diversity=None,
     )
-    if DIVERSITY["coverage"] is None:
+    if _div_extra:
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Coverage", f"{_div['coverage_pct']}%",
+                  help=f"{_div_extra['n_unique']} unique movies recommended across {_div_extra['n_users']} sampled users")
+        c2.metric("Gini coefficient", f"{_div_extra['gini']:.4f}",
+                  help="Popularity concentration (0 = perfectly even, 1 = one movie gets everything)")
+        c3.metric("Top 1% share", f"{_div_extra['top1pct']}%",
+                  help="Share of all recommendations captured by the top 1% most-recommended movies")
         st.caption(
-            "Run `phase5_evaluation/diversity_analysis.py` and fill in the "
-            "`DIVERSITY` dict at the top of `dashboard.py`."
+            f"SVD model only, {_div_extra['n_users']} sampled users. "
+            "Gini and top-1% share are popularity-concentration metrics — "
+            "not intra-list diversity (average pairwise dissimilarity), which hasn't been computed yet."
+        )
+    elif DIVERSITY["coverage"] is None:
+        st.caption(
+            "Run `phase5_evaluation/diversity_analysis.py` — output will be read automatically."
         )
 
     st.divider()
